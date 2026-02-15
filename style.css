@@ -1,0 +1,66 @@
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+.controls {
+    margin-bottom: 20px;
+}
+
+.counter {
+    width: 40px;
+    height: 30px;
+    display: inline-block;
+    margin: 1px;
+    text-align: center;
+    line-height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.zone1 {
+    background: #4CAF50;
+    color: white;
+}
+
+.zone2 {
+    background: #2196F3;
+    color: white;
+}
+
+.zone3 {
+    background: #FF9800;
+    color: white;
+}
+
+.zone4 {
+    background: #9C27B0;
+    color: white;
+}
+
+.manual {
+    background: #555;
+    color: white;
+}
+
+.closed {
+    background: #ddd;
+    color: #999;
+}
+
+.highlight1 {
+    background: #f44336 !important;
+}
+
+.highlight2 {
+    background: #e91e63 !important;
+}
+
+.highlight3 {
+    background: #ffeb3b !important;
+    color: black !important;
+}
+
+.highlight4 {
+    background: #00bcd4 !important;
+}
