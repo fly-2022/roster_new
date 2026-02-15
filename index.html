@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICA Production Roster</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -23,17 +24,17 @@
 
   <label>Base Officers:</label>
   <input type="number" id="baseOfficers" value="20" min="1"/>
-  <button onclick="generateBase()">Generate Base</button>
+  <button type="button" onclick="generateBase()">Generate Base</button>
 
   <hr>
   <h3>RA / RO</h3>
   <input placeholder="Officer Name" id="raName">
   <input type="time" id="raTime">
-  <button onclick="addRA()">Add RA</button>
+  <button type="button" onclick="addRA()">Add RA</button>
 
   <input placeholder="Officer Name" id="roName">
   <input type="time" id="roTime">
-  <button onclick="addRO()">Add RO</button>
+  <button type="button" onclick="addRO()">Add RO</button>
 
   <hr>
   <h3>OT / SOS</h3>
@@ -43,12 +44,12 @@
     <option value="1600-2100">1600-2100</option>
     <option value="0600-1100">0600-1100</option>
   </select>
-  <button onclick="addOT()">Add OT</button>
+  <button type="button" onclick="addOT()">Add OT</button>
 
   <input type="number" id="sosCount" placeholder="SOS count">
   <input type="time" id="sosStart">
   <input type="time" id="sosEnd">
-  <button onclick="addSOS()">Add SOS</button>
+  <button type="button" onclick="addSOS()">Add SOS</button>
 
   <hr>
   <input placeholder="Search officer" id="searchBox" onkeyup="searchOfficer()">
