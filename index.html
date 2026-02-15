@@ -1,74 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <title>ICA Production Roster</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>ICA Production Roster</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <h1>ICA Counter Manning System</h1>
+<h1>ICA Counter Manning System</h1>
 
-    <div class="controls">
-        <label>Operation:</label>
-        <select id="operation">
-            <option value="arrival">Arrival</option>
-            <option value="departure">Departure</option>
-        </select>
+<div class="controls">
+  <label>Operation:</label>
+  <select id="operation" onchange="generateAssignments()">
+    <option value="arrival">Arrival</option>
+    <option value="departure">Departure</option>
+  </select>
 
-        <label>Shift:</label>
-        <select id="shift">
-            <option value="morning">Morning</option>
-            <option value="night">Night</option>
-        </select>
+  <label>Shift:</label>
+  <select id="shift" onchange="generateAssignments()">
+    <option value="morning">Morning</option>
+    <option value="night">Night</option>
+  </select>
 
-        <label>Number of officers:</label>
-        <input type="number" id="baseOfficers" value="20" min="1" />
-        <button onclick="generateBase()">Generate Base</button>
+  <label>Base Officers:</label>
+  <input type="number" id="baseOfficers" value="20" min="1"/>
+  <button onclick="generateBase()">Generate Base</button>
 
-        <hr>
+  <hr>
+  <h3>RA / RO</h3>
+  <input placeholder="Officer Name" id="raName">
+  <input type="time" id="raTime">
+  <button onclick="addRA()">Add RA</button>
 
-        <h3>RA / RO</h3>
-        <input placeholder="Officer Name" id="raName">
-        <input type="time" id="raTime">
-        <button onclick="addRA()">Add RA</button>
+  <input placeholder="Officer Name" id="roName">
+  <input type="time" id="roTime">
+  <button onclick="addRO()">Add RO</button>
 
-        <input placeholder="Officer Name" id="roName">
-        <input type="time" id="roTime">
-        <button onclick="addRO()">Add RO</button>
+  <hr>
+  <h3>OT / SOS</h3>
+  <input type="number" id="otCount" placeholder="OT count">
+  <select id="otBlock">
+    <option value="1100-1600">1100-1600</option>
+    <option value="1600-2100">1600-2100</option>
+    <option value="0600-1100">0600-1100</option>
+  </select>
+  <button onclick="addOT()">Add OT</button>
 
-        <hr>
+  <input type="number" id="sosCount" placeholder="SOS count">
+  <input type="time" id="sosStart">
+  <input type="time" id="sosEnd">
+  <button onclick="addSOS()">Add SOS</button>
 
-        <h3>OT / SOS</h3>
-        <input type="number" id="otCount" placeholder="OT count">
-        <select id="otBlock">
-            <option value="1100-1600">1100-1600</option>
-            <option value="1600-2100">1600-2100</option>
-            <option value="0600-1100">0600-1100</option>
-        </select>
-        <button onclick="addOT()">Add OT</button>
+  <hr>
+  <input placeholder="Search officer" id="searchBox" onkeyup="searchOfficer()">
+</div>
 
-        <input type="number" id="sosCount" placeholder="SOS count">
-        <input type="time" id="sosStart">
-        <input type="time" id="sosEnd">
-        <button onclick="addSOS()">Add SOS</button>
+<h2>Counter Grid</h2>
+<div id="gridContainer">
+  <table id="grid"></table>
+</div>
 
-        <hr>
+<h2>Officer Roster</h2>
+<pre id="officerRoster"></pre>
 
-        <input placeholder="Search officer" id="searchBox" onkeyup="searchOfficer()">
-    </div>
+<h2>Manning Summary</h2>
+<pre id="summary"></pre>
 
-    <h2>Counter Grid</h2>
-    <div id="grid"></div>
-
-    <h2>Officer Roster</h2>
-    <pre id="officerRoster"></pre>
-
-    <h2>Manning Summary</h2>
-    <pre id="summary"></pre>
-
-    <script src="./app.js"></script>
+<script src="app.js"></script>
 </body>
-
 </html>
