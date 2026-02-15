@@ -4,15 +4,9 @@ body { font-family: Arial, sans-serif; padding: 20px; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
 td, th { border: 1px solid #999; text-align: center; padding: 2px; font-size: 12px; }
 
-.counterCell { width: 30px; height: 25px; cursor: pointer; }
-.zone1 { background-color: #4CAF50; color: white; }
-.zone2 { background-color: #2196F3; color: white; }
-.zone3 { background-color: #FF9800; color: white; }
-.zone4 { background-color: #9C27B0; color: white; }
-.manual { background-color: #555; color: white; }
-.closed { background-color: #ddd; color: #999; }
+.counterCell { width: 50px; height: 25px; }
+.closed { background-color: #fff; color: #999; }
 
-.highlight1 { background: #f44336 !important; }
-.highlight2 { background: #e91e63 !important; }
-.highlight3 { background: #ffeb3b !important; color:black !important; }
-.highlight4 { background: #00bcd4 !important; }
+.highlight1 { background: #4CAF50; color:white;} /* base roster green */
+.highlight2 { background: #2196F3; color:white;} /* SOS blue */
+.highlight3 { background: #FF9800; color:white;} /* OT orange */
