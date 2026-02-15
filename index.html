@@ -1,71 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICA Production Roster</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Roster Management System</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h1>ICA Counter Manning System</h1>
+    <div class="container">
+        <header>
+            <h1>Dynamic Roster Management System</h1>
+            <div class="shift-selector">
+                <button id="morning-shift" class="shift-btn active">Morning Shift (1000-2200)</button>
+                <button id="night-shift" class="shift-btn">Night Shift (2200-1000)</button>
+            </div>
+        </header>
 
-<div class="controls">
-  <label>Operation:</label>
-  <select id="operation" onchange="generateAssignments()">
-    <option value="arrival">Arrival</option>
-    <option value="departure">Departure</option>
-  </select>
+        <main>
+            <!-- Officer Management Panel -->
+            <section class="management-panel">
+                <h2>Officer Management</h2>
+                <div class="officer-controls">
+                    <div class="control-group">
+                        <h3>Main Roster</h3>
+                        <button onclick="addOfficer('main-roster')">Add Main Roster</button>
+                        <button onclick="removeOfficer('main-roster')">Remove Main Roster</button>
+                    </div>
+                    <div class="control-group">
+                        <h3>SOS</h3>
+                        <button onclick="addOfficer('sos')">Add SOS</button>
+                        <button onclick="removeOfficer('sos')">Remove SOS</button>
+                    </div>
+                    <div class="control-group">
+                        <h3>OT</h3>
+                        <select id="ot-type">
+                            <option value="ot1">OT Type 1 (1100-1600)</option>
+                            <option value="ot2">OT Type 2 (1600-2100)</option>
+                            <option value="ot3">OT Type 3 (0600-1100)</option>
+                        </select>
+                        <button onclick="addOfficer('ot')">Add OT</button>
+                        <button onclick="removeOfficer('ot')">Remove OT</button>
+                    </div>
+                    <div class="control-group">
+                        <h3>RA/RO</h3>
+                        <input type="time" id="ra-ro-time" placeholder="HH:MM">
+                        <select id="ra-ro-type">
+                            <option value="ra">Report After (RA)</option>
+                            <option value="ro">Report Off (RO)</option>
+                        </select>
+                        <button onclick="addOfficer('ra-ro')">Add RA/RO</button>
+                        <button onclick="removeOfficer('ra-ro')">Remove RA/RO</button>
+                    </div>
+                </div>
+            </section>
 
-  <label>Shift:</label>
-  <select id="shift" onchange="generateAssignments()">
-    <option value="morning">Morning</option>
-    <option value="night">Night</option>
-  </select>
+            <!-- Counter Grid -->
+            <section class="counter-grid">
+                <div class="zone-container">
+                    <h3>Arrival Zones</h3>
+                    <div class="zones">
+                        <div class="zone" data-zone="arrival-1">
+                            <h4>Zone 1 (10 Car + 2 MC)</h4>
+                            <div class="counters" id="arrival-zone-1"></div>
+                        </div>
+                        <div class="zone" data-zone="arrival-2">
+                            <h4>Zone 2 (10 Car)</h4>
+                            <div class="counters" id="arrival-zone-2"></div>
+                        </div>
+                        <div class="zone" data-zone="arrival-3">
+                            <h4>Zone 3 (10 Car)</h4>
+                            <div class="counters" id="arrival-zone-3"></div>
+                        </div>
+                        <div class="zone" data-zone="arrival-4">
+                            <h4>Zone 4 (10 Car)</h4>
+                            <div class="counters" id="arrival-zone-4"></div>
+                        </div>
+                    </div>
+                </div>
 
-  <label>Base Officers:</label>
-  <input type="number" id="baseOfficers" value="20" min="1"/>
-  <button type="button" onclick="generateBase()">Generate Base</button>
+                <div class="zone-container">
+                    <h3>Departure Zones</h3>
+                    <div class="zones">
+                        <div class="zone" data-zone="departure-1">
+                            <h4>Zone 1 (10 Car + 2 MC)</h4>
+                            <div class="counters" id="departure-zone-1"></div>
+                        </div>
+                        <div class="zone" data-zone="departure-2">
+                            <h4>Zone 2 (8 Car)</h4>
+                            <div class="counters" id="departure-zone-2"></div>
+                        </div>
+                        <div class="zone" data-zone="departure-3">
+                            <h4>Zone 3 (8 Car)</h4>
+                            <div class="counters" id="departure-zone-3"></div>
+                        </div>
+                        <div class="zone" data-zone="departure-4">
+                            <h4>Zone 4 (10 Car)</h4>
+                            <div class="counters" id="departure-zone-4"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-  <hr>
-  <h3>RA / RO</h3>
-  <input placeholder="Officer Name" id="raName">
-  <input type="time" id="raTime">
-  <button type="button" onclick="addRA()">Add RA</button>
+            <!-- Manning Summary -->
+            <section class="manning-summary">
+                <h2>Manning Summary</h2>
+                <div class="summary-controls">
+                    <button onclick="generateManningSummary()">Generate Summary</button>
+                    <button onclick="exportSummary()">Export Summary</button>
+                </div>
+                <div id="manning-display" class="summary-display"></div>
+            </section>
 
-  <input placeholder="Officer Name" id="roName">
-  <input type="time" id="roTime">
-  <button type="button" onclick="addRO()">Add RO</button>
+            <!-- Current Status -->
+            <section class="current-status">
+                <h2>Current Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="label">Total Officers:</span>
+                        <span id="total-officers">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Manning Level:</span>
+                        <span id="manning-level">0%</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Car Counters Active:</span>
+                        <span id="car-counters">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">MC Counters Active:</span>
+                        <span id="mc-counters">0</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-  <hr>
-  <h3>OT / SOS</h3>
-  <input type="number" id="otCount" placeholder="OT count">
-  <select id="otBlock">
-    <option value="1100-1600">1100-1600</option>
-    <option value="1600-2100">1600-2100</option>
-    <option value="0600-1100">0600-1100</option>
-  </select>
-  <button type="button" onclick="addOT()">Add OT</button>
-
-  <input type="number" id="sosCount" placeholder="SOS count">
-  <input type="time" id="sosStart">
-  <input type="time" id="sosEnd">
-  <button type="button" onclick="addSOS()">Add SOS</button>
-
-  <hr>
-  <input placeholder="Search officer" id="searchBox" onkeyup="searchOfficer()">
-</div>
-
-<h2>Counter Grid</h2>
-<div id="gridContainer">
-  <table id="grid"></table>
-</div>
-
-<h2>Officer Roster</h2>
-<pre id="officerRoster"></pre>
-
-<h2>Manning Summary</h2>
-<pre id="summary"></pre>
-
-<script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
