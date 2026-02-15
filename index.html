@@ -1,141 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Roster Management System</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Roster</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Dynamic Roster Management System</h1>
-            <div class="shift-selector">
-                <button id="morning-shift" class="shift-btn active">Morning Shift (1000-2200)</button>
-                <button id="night-shift" class="shift-btn">Night Shift (2200-1000)</button>
-            </div>
-        </header>
+<h1>Immigration Officer Roster</h1>
 
-        <main>
-            <!-- Officer Management Panel -->
-            <section class="management-panel">
-                <h2>Officer Management</h2>
-                <div class="officer-controls">
-                    <div class="control-group">
-                        <h3>Main Roster</h3>
-                        <button onclick="addOfficer('main-roster')">Add Main Roster</button>
-                        <button onclick="removeOfficer('main-roster')">Remove Main Roster</button>
-                    </div>
-                    <div class="control-group">
-                        <h3>SOS</h3>
-                        <button onclick="addOfficer('sos')">Add SOS</button>
-                        <button onclick="removeOfficer('sos')">Remove SOS</button>
-                    </div>
-                    <div class="control-group">
-                        <h3>OT</h3>
-                        <select id="ot-type">
-                            <option value="ot1">OT Type 1 (1100-1600)</option>
-                            <option value="ot2">OT Type 2 (1600-2100)</option>
-                            <option value="ot3">OT Type 3 (0600-1100)</option>
-                        </select>
-                        <button onclick="addOfficer('ot')">Add OT</button>
-                        <button onclick="removeOfficer('ot')">Remove OT</button>
-                    </div>
-                    <div class="control-group">
-                        <h3>RA/RO</h3>
-                        <input type="time" id="ra-ro-time">
-                        <select id="ra-ro-type">
-                            <option value="ra">Report After (RA)</option>
-                            <option value="ro">Report Off (RO)</option>
-                        </select>
-                        <button onclick="addOfficer('ra-ro')">Add RA/RO</button>
-                        <button onclick="removeOfficer('ra-ro')">Remove RA/RO</button>
-                    </div>
-                </div>
-            </section>
+<div>
+    <label>Shift:
+        <select id="shiftSelect">
+            <option value="morning">Morning (10:00-22:00)</option>
+            <option value="night">Night (22:00-10:00)</option>
+        </select>
+    </label>
+</div>
 
-            <!-- Counter Grid -->
-            <section class="counter-grid">
-                <div class="zone-container">
-                    <h3>Arrival Zones</h3>
-                    <div class="zones">
-                        <div class="zone" data-zone="arrival-1">
-                            <h4>Zone 1 (10 Car + 2 MC)</h4>
-                            <div class="counters" id="arrival-zone-1"></div>
-                        </div>
-                        <div class="zone" data-zone="arrival-2">
-                            <h4>Zone 2 (10 Car)</h4>
-                            <div class="counters" id="arrival-zone-2"></div>
-                        </div>
-                        <div class="zone" data-zone="arrival-3">
-                            <h4>Zone 3 (10 Car)</h4>
-                            <div class="counters" id="arrival-zone-3"></div>
-                        </div>
-                        <div class="zone" data-zone="arrival-4">
-                            <h4>Zone 4 (10 Car)</h4>
-                            <div class="counters" id="arrival-zone-4"></div>
-                        </div>
-                    </div>
-                </div>
+<h2>Counter Grid</h2>
+<div id="counterGrid"></div>
 
-                <div class="zone-container">
-                    <h3>Departure Zones</h3>
-                    <div class="zones">
-                        <div class="zone" data-zone="departure-1">
-                            <h4>Zone 1 (10 Car + 2 MC)</h4>
-                            <div class="counters" id="departure-zone-1"></div>
-                        </div>
-                        <div class="zone" data-zone="departure-2">
-                            <h4>Zone 2 (8 Car)</h4>
-                            <div class="counters" id="departure-zone-2"></div>
-                        </div>
-                        <div class="zone" data-zone="departure-3">
-                            <h4>Zone 3 (8 Car)</h4>
-                            <div class="counters" id="departure-zone-3"></div>
-                        </div>
-                        <div class="zone" data-zone="departure-4">
-                            <h4>Zone 4 (10 Car)</h4>
-                            <div class="counters" id="departure-zone-4"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+<h2>Manning Summary</h2>
+<div id="manningSummary"></div>
 
-            <!-- Manning Summary -->
-            <section class="manning-summary">
-                <h2>Manning Summary</h2>
-                <div class="summary-controls">
-                    <button onclick="generateManningSummary()">Generate Summary</button>
-                    <button onclick="exportSummary()">Export Summary</button>
-                </div>
-                <div id="manning-display" class="summary-display"></div>
-            </section>
+<h2>Add Officer</h2>
+<form id="addOfficerForm">
+    <input type="text" id="officerName" placeholder="Officer Name" required>
+    <select id="officerType">
+        <option value="main">Main</option>
+        <option value="SOS">SOS</option>
+        <option value="OT1">OT Type1</option>
+        <option value="OT2">OT Type2</option>
+        <option value="OT3">OT Type3</option>
+    </select>
+    <select id="officerShift">
+        <option value="morning">Morning</option>
+        <option value="night">Night</option>
+    </select>
+    <input type="text" id="raTime" placeholder="RA (HHMM)" required>
+    <input type="text" id="roTime" placeholder="RO (HHMM)" required>
+    <button type="submit">Add Officer</button>
+</form>
 
-            <!-- Current Status -->
-            <section class="current-status">
-                <h2>Current Status</h2>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="label">Total Officers:</span>
-                        <span id="total-officers">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Manning Level:</span>
-                        <span id="manning-level">0%</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">Car Counters Active:</span>
-                        <span id="car-counters">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">MC Counters Active:</span>
-                        <span id="mc-counters">0</span>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+<h2>Remove Officer</h2>
+<form id="removeOfficerForm">
+    <input type="text" id="removeName" placeholder="Officer Name" required>
+    <button type="submit">Remove Officer</button>
+</form>
 
-    <script src="script.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
