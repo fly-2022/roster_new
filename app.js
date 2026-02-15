@@ -4,6 +4,7 @@
 let officers = [];
 let assignments = {}; // time -> zone -> counterIndex -> {name,type}
 
+// Configuration
 const zonesConfig = {
   arrival: [
     { name: "Zone1", counters: 10 },
@@ -41,20 +42,21 @@ function generateTimeSlots(shift){
     min+=15;
     if(min>=60){ hour+=1; min-=60; }
     if(hour>=24) hour-=24;
-    if(time==pad(Math.floor(end/100))+pad(end%100)) break;
+    if(shift==="morning" && time>=pad(Math.floor(end/100))+pad(end%100)) break;
+    if(shift==="night" && slots.length>96) break; // max 12h slots 15min
     if(slots.length>200) break;
   }
   return slots;
 }
 
 // ------------------------
-// GENERATE BASE OFFICERS
+// BASE OFFICERS
 // ------------------------
 function generateBase(){
   officers=[];
   let count = parseInt(document.getElementById("baseOfficers").value);
   let operation=document.getElementById("operation").value;
-  let max = zonesConfig[operation].reduce((sum,z)=>sum+z.counters,0) + 2; // include 2 manual motorcycles
+  let max = zonesConfig[operation].reduce((sum,z)=>sum+z.counters,0) + 2; // include motorcycles
   if(count>max){
     alert("Exceed max counters by "+(count-max));
     return;
@@ -113,23 +115,21 @@ function generateAssignments(){
   let zones = zonesConfig[operation];
   let timeslots = generateTimeSlots(shift);
 
-  // Initialize assignments
+  // Initialize
   assignments={};
   timeslots.forEach(t=>{
     assignments[t]={};
     zones.forEach(z=>{
       assignments[t][z.name]=Array(z.counters).fill(null);
     });
-    // Manual motorcycles
     assignments[t]["Motorcycles"]=manualMotor[operation].map(m=>null);
   });
 
   // Assign officers back-counter-first
   timeslots.forEach(t=>{
     zones.forEach((z,zi)=>{
-      let maxCounters = z.counters;
       let assigned = assignments[t][z.name];
-      let counterIndices = Array.from({length:maxCounters},(_,i)=>maxCounters-1-i); // back first
+      let counterIndices = Array.from({length:z.counters},(_,i)=>z.counters-1-i);
       counterIndices.forEach(idx=>{
         for(let o of officers){
           if(o.start && t<o.start) continue;
@@ -141,7 +141,7 @@ function generateAssignments(){
         }
       });
     });
-    // Assign motorcycles if officers left
+    // Assign motorcycles
     let mAssigned = assignments[t]["Motorcycles"];
     mAssigned.forEach((m,mi)=>{
       for(let o of officers){
@@ -169,12 +169,12 @@ function renderGrid(){
   let operation=document.getElementById("operation").value;
   let shift=document.getElementById("shift").value;
   let zones = zonesConfig[operation];
-  let timeslots = generateTimeSlots(shift);
+  let timeslots = Object.keys(assignments);
 
   // Header
   let header = document.createElement("tr");
-  header.appendChild(document.createElement("th")); // corner
-  header.appendChild(document.createElement("th")); // zone column
+  header.appendChild(document.createElement("th"));
+  header.appendChild(document.createElement("th"));
   timeslots.forEach(t=>{
     let th=document.createElement("th");
     th.textContent=t;
@@ -182,12 +182,12 @@ function renderGrid(){
   });
   grid.appendChild(header);
 
-  // Rows
+  // Zones + counters
   zones.forEach((z,zi)=>{
     for(let c=0;c<z.counters;c++){
       let tr=document.createElement("tr");
       let thC=document.createElement("th");
-      thC.textContent=(operation==="arrival"?"AC":"DC") + (Object.values(zones).slice(0,zi).reduce((s,z2)=>s+z2.counters,0)+c+1);
+      thC.textContent=(operation==="arrival"?"AC":"DC")+(Object.values(zones).slice(0,zi).reduce((s,z2)=>s+z2.counters,0)+c+1);
       tr.appendChild(thC);
 
       let thZ=document.createElement("th");
@@ -200,12 +200,9 @@ function renderGrid(){
         let assign = assignments[t][z.name][c];
         if(assign){
           td.textContent=assign.name;
-          if(assign.type==="base") td.className="counterCell zone"+(zi+1);
-          else if(assign.type==="ot") td.className="counterCell highlight3";
-          else if(assign.type==="sos") td.className="counterCell highlight2";
-        }else{
-          td.textContent="";
-          td.className="counterCell closed";
+          td.className=assign.type==="base"?"counterCell highlight1":
+                       assign.type==="ot"?"counterCell highlight3":
+                       assign.type==="sos"?"counterCell highlight2":"counterCell closed";
         }
         tr.appendChild(td);
       });
@@ -213,15 +210,17 @@ function renderGrid(){
     }
   });
 
-  // Manual motorcycles
-  let mRow = assignments[timeslots[0]]["Motorcycles"].map((_,mi)=>{
+  // Motorcycles
+  manualMotor[operation].forEach((m,mi)=>{
     let tr=document.createElement("tr");
     let thC=document.createElement("th");
-    thC.textContent=manualMotor[operation][mi];
+    thC.textContent=m;
     tr.appendChild(thC);
+
     let thZ=document.createElement("th");
     thZ.textContent="Motorcycles";
     tr.appendChild(thZ);
+
     timeslots.forEach(t=>{
       let td=document.createElement("td");
       let assign = assignments[t]["Motorcycles"][mi];
@@ -230,9 +229,6 @@ function renderGrid(){
         td.className=assign.type==="base"?"counterCell highlight1":
                      assign.type==="ot"?"counterCell highlight3":
                      assign.type==="sos"?"counterCell highlight2":"counterCell closed";
-      }else{
-        td.className="counterCell closed";
-        td.textContent="";
       }
       tr.appendChild(td);
     });
@@ -274,4 +270,14 @@ function renderOfficerRoster(){
     text+="\n";
   });
   document.getElementById("officerRoster").textContent=text;
+}
+
+// ------------------------
+// SEARCH OFFICER
+// ------------------------
+function searchOfficer(){
+  let val=document.getElementById("searchBox").value.toLowerCase();
+  let roster=document.getElementById("officerRoster");
+  let lines=roster.textContent.split("\n");
+  roster.textContent = lines.filter(l=>l.toLowerCase().includes(val)).join("\n");
 }
