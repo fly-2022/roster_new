@@ -2,7 +2,7 @@
 // DATA STRUCTURES
 // ------------------------
 let officers = [];
-let assignments = {}; // time -> zone -> counterIndex -> officerName
+let assignments = {}; // time -> zone -> counterIndex -> {name,type}
 
 const zonesConfig = {
   arrival: [
@@ -19,8 +19,13 @@ const zonesConfig = {
   ]
 };
 
+const manualMotor = {
+  arrival: ["AM41","AM42"],
+  departure: ["DM37A","DM37B"]
+};
+
 // ------------------------
-// UTILITIES
+// TIME UTIL
 // ------------------------
 function pad(num){ return String(num).padStart(2,'0'); }
 
@@ -33,23 +38,23 @@ function generateTimeSlots(shift){
   while(true){
     let time = pad(hour)+pad(min);
     slots.push(time);
-    min += 15;
+    min+=15;
     if(min>=60){ hour+=1; min-=60; }
     if(hour>=24) hour-=24;
     if(time==pad(Math.floor(end/100))+pad(end%100)) break;
-    if(slots.length>200) break; // safety
+    if(slots.length>200) break;
   }
   return slots;
 }
 
 // ------------------------
-// BASE OFFICERS
+// GENERATE BASE OFFICERS
 // ------------------------
 function generateBase(){
   officers=[];
   let count = parseInt(document.getElementById("baseOfficers").value);
   let operation=document.getElementById("operation").value;
-  let max = zonesConfig[operation].reduce((sum,z)=>sum+z.counters,0);
+  let max = zonesConfig[operation].reduce((sum,z)=>sum+z.counters,0) + 2; // include 2 manual motorcycles
   if(count>max){
     alert("Exceed max counters by "+(count-max));
     return;
@@ -115,11 +120,13 @@ function generateAssignments(){
     zones.forEach(z=>{
       assignments[t][z.name]=Array(z.counters).fill(null);
     });
+    // Manual motorcycles
+    assignments[t]["Motorcycles"]=manualMotor[operation].map(m=>null);
   });
 
   // Assign officers back-counter-first
   timeslots.forEach(t=>{
-    zones.forEach(z=>{
+    zones.forEach((z,zi)=>{
       let maxCounters = z.counters;
       let assigned = assignments[t][z.name];
       let counterIndices = Array.from({length:maxCounters},(_,i)=>maxCounters-1-i); // back first
@@ -128,11 +135,23 @@ function generateAssignments(){
           if(o.start && t<o.start) continue;
           if(o.end && t>=o.end) continue;
           if(!assigned.includes(o.name)){
-            assigned[idx]=o.name;
+            assigned[idx]={name:o.name,type:o.type};
             break;
           }
         }
       });
+    });
+    // Assign motorcycles if officers left
+    let mAssigned = assignments[t]["Motorcycles"];
+    mAssigned.forEach((m,mi)=>{
+      for(let o of officers){
+        if(o.start && t<o.start) continue;
+        if(o.end && t>=o.end) continue;
+        if(!mAssigned.find(x=>x && x.name===o.name)){
+          mAssigned[mi]={name:o.name,type:o.type};
+          break;
+        }
+      }
     });
   });
 
@@ -154,7 +173,8 @@ function renderGrid(){
 
   // Header
   let header = document.createElement("tr");
-  header.appendChild(document.createElement("th")); // corner cell
+  header.appendChild(document.createElement("th")); // corner
+  header.appendChild(document.createElement("th")); // zone column
   timeslots.forEach(t=>{
     let th=document.createElement("th");
     th.textContent=t;
@@ -166,38 +186,58 @@ function renderGrid(){
   zones.forEach((z,zi)=>{
     for(let c=0;c<z.counters;c++){
       let tr=document.createElement("tr");
-      let th=document.createElement("th");
-      th.textContent=`${z.name} C${c+1}`;
-      tr.appendChild(th);
+      let thC=document.createElement("th");
+      thC.textContent=(operation==="arrival"?"AC":"DC") + (Object.values(zones).slice(0,zi).reduce((s,z2)=>s+z2.counters,0)+c+1);
+      tr.appendChild(thC);
+
+      let thZ=document.createElement("th");
+      thZ.textContent=z.name;
+      tr.appendChild(thZ);
+
       timeslots.forEach(t=>{
         let td=document.createElement("td");
         td.className="counterCell closed";
-        if(assignments[t][z.name][c]) td.className="counterCell zone"+(zi+1);
-        td.dataset.time=t;
-        td.dataset.zone=z.name;
-        td.dataset.counter=c;
-        td.onclick=()=>toggleHighlight(td);
-        td.textContent=c+1;
+        let assign = assignments[t][z.name][c];
+        if(assign){
+          td.textContent=assign.name;
+          if(assign.type==="base") td.className="counterCell zone"+(zi+1);
+          else if(assign.type==="ot") td.className="counterCell highlight3";
+          else if(assign.type==="sos") td.className="counterCell highlight2";
+        }else{
+          td.textContent="";
+          td.className="counterCell closed";
+        }
         tr.appendChild(td);
       });
       grid.appendChild(tr);
     }
   });
-}
 
-// ------------------------
-// HIGHLIGHT
-// ------------------------
-function toggleHighlight(td){
-  let classes=["highlight1","highlight2","highlight3","highlight4"];
-  let current = classes.find(c=>td.classList.contains(c));
-  if(!current) td.classList.add(classes[0]);
-  else{
-    let idx = classes.indexOf(current);
-    td.classList.remove(current);
-    let next = (idx+1)%classes.length;
-    td.classList.add(classes[next]);
-  }
+  // Manual motorcycles
+  let mRow = assignments[timeslots[0]]["Motorcycles"].map((_,mi)=>{
+    let tr=document.createElement("tr");
+    let thC=document.createElement("th");
+    thC.textContent=manualMotor[operation][mi];
+    tr.appendChild(thC);
+    let thZ=document.createElement("th");
+    thZ.textContent="Motorcycles";
+    tr.appendChild(thZ);
+    timeslots.forEach(t=>{
+      let td=document.createElement("td");
+      let assign = assignments[t]["Motorcycles"][mi];
+      if(assign){
+        td.textContent=assign.name;
+        td.className=assign.type==="base"?"counterCell highlight1":
+                     assign.type==="ot"?"counterCell highlight3":
+                     assign.type==="sos"?"counterCell highlight2":"counterCell closed";
+      }else{
+        td.className="counterCell closed";
+        td.textContent="";
+      }
+      tr.appendChild(td);
+    });
+    grid.appendChild(tr);
+  });
 }
 
 // ------------------------
@@ -207,7 +247,8 @@ function renderSummary(){
   let summary="";
   let operation=document.getElementById("operation").value;
   let zones = zonesConfig[operation];
-  Object.keys(assignments).forEach(t=>{
+  let timeslots = Object.keys(assignments);
+  timeslots.forEach(t=>{
     let total=0;
     let breakdown=[];
     zones.forEach(z=>{
@@ -215,7 +256,7 @@ function renderSummary(){
       total+=count;
       breakdown.push(count);
     });
-    summary+=t+": "+total+"/01\n";
+    summary+=t+": "+total+"/"+manualMotor[operation].length+"\n";
     summary+=breakdown.join("/")+"\n\n";
   });
   document.getElementById("summary").textContent=summary;
@@ -232,16 +273,5 @@ function renderOfficerRoster(){
     if(o.end) text+=" RO:"+o.end;
     text+="\n";
   });
-  document.getElementById("officerRoster").textContent=text;
-}
-
-// ------------------------
-// SEARCH
-// ------------------------
-function searchOfficer(){
-  let q=document.getElementById("searchBox").value.toLowerCase();
-  let text="";
-  officers.filter(o=>o.name.toLowerCase().includes(q))
-          .forEach(o=>text+=o.name+"\n");
   document.getElementById("officerRoster").textContent=text;
 }
