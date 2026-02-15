@@ -281,3 +281,4 @@ function searchOfficer(){
   let lines=roster.textContent.split("\n");
   roster.textContent = lines.filter(l=>l.toLowerCase().includes(val)).join("\n");
 }
+
