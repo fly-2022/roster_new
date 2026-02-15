@@ -1,284 +1,407 @@
-// ------------------------
-// DATA STRUCTURES
-// ------------------------
-let officers = [];
-let assignments = {}; // time -> zone -> counterIndex -> {name,type}
-
-// Configuration
-const zonesConfig = {
-  arrival: [
-    { name: "Zone1", counters: 10 },
-    { name: "Zone2", counters: 10 },
-    { name: "Zone3", counters: 10 },
-    { name: "Zone4", counters: 10 }
-  ],
-  departure: [
-    { name: "Zone1", counters: 8 },
-    { name: "Zone2", counters: 10 },
-    { name: "Zone3", counters: 10 },
-    { name: "Zone4", counters: 8 }
-  ]
-};
-
-const manualMotor = {
-  arrival: ["AM41","AM42"],
-  departure: ["DM37A","DM37B"]
-};
-
-// ------------------------
-// TIME UTIL
-// ------------------------
-function pad(num){ return String(num).padStart(2,'0'); }
-
-function generateTimeSlots(shift){
-  let slots=[], start, end;
-  if(shift==="morning"){ start=1000; end=2200; }
-  else { start=2200; end=1000; }
-  let hour = Math.floor(start/100);
-  let min = start%100;
-  while(true){
-    let time = pad(hour)+pad(min);
-    slots.push(time);
-    min+=15;
-    if(min>=60){ hour+=1; min-=60; }
-    if(hour>=24) hour-=24;
-    if(shift==="morning" && time>=pad(Math.floor(end/100))+pad(end%100)) break;
-    if(shift==="night" && slots.length>96) break; // max 12h slots 15min
-    if(slots.length>200) break;
-  }
-  return slots;
-}
-
-// ------------------------
-// BASE OFFICERS
-// ------------------------
-function generateBase(){
-  officers=[];
-  let count = parseInt(document.getElementById("baseOfficers").value);
-  let operation=document.getElementById("operation").value;
-  let max = zonesConfig[operation].reduce((sum,z)=>sum+z.counters,0) + 2; // include motorcycles
-  if(count>max){
-    alert("Exceed max counters by "+(count-max));
-    return;
-  }
-  for(let i=1;i<=count;i++){
-    officers.push({name:"Officer"+i,start:null,end:null,type:"base"});
-  }
-  generateAssignments();
-}
-
-// ------------------------
-// RA / RO
-// ------------------------
-function addRA(){
-  let name=document.getElementById("raName").value;
-  let time=document.getElementById("raTime").value.replace(":","");
-  let o = officers.find(o=>o.name===name);
-  if(o) o.start=time;
-  generateAssignments();
-}
-function addRO(){
-  let name=document.getElementById("roName").value;
-  let time=document.getElementById("roTime").value.replace(":","");
-  let o = officers.find(o=>o.name===name);
-  if(o) o.end=time;
-  generateAssignments();
-}
-
-// ------------------------
-// OT / SOS
-// ------------------------
-function addOT(){
-  let count=parseInt(document.getElementById("otCount").value);
-  let block=document.getElementById("otBlock").value.split("-");
-  for(let i=0;i<count;i++){
-    officers.push({name:"OT"+(i+1),start:block[0],end:block[1],type:"ot"});
-  }
-  generateAssignments();
-}
-function addSOS(){
-  let count=parseInt(document.getElementById("sosCount").value);
-  let start=document.getElementById("sosStart").value.replace(":","");
-  let end=document.getElementById("sosEnd").value.replace(":","");
-  for(let i=0;i<count;i++){
-    officers.push({name:"SOS"+(i+1),start:start,end:end,type:"sos"});
-  }
-  generateAssignments();
-}
-
-// ------------------------
-// ASSIGNMENT LOGIC
-// ------------------------
-function generateAssignments(){
-  let operation=document.getElementById("operation").value;
-  let shift=document.getElementById("shift").value;
-  let zones = zonesConfig[operation];
-  let timeslots = generateTimeSlots(shift);
-
-  // Initialize
-  assignments={};
-  timeslots.forEach(t=>{
-    assignments[t]={};
-    zones.forEach(z=>{
-      assignments[t][z.name]=Array(z.counters).fill(null);
-    });
-    assignments[t]["Motorcycles"]=manualMotor[operation].map(m=>null);
-  });
-
-  // Assign officers back-counter-first
-  timeslots.forEach(t=>{
-    zones.forEach((z,zi)=>{
-      let assigned = assignments[t][z.name];
-      let counterIndices = Array.from({length:z.counters},(_,i)=>z.counters-1-i);
-      counterIndices.forEach(idx=>{
-        for(let o of officers){
-          if(o.start && t<o.start) continue;
-          if(o.end && t>=o.end) continue;
-          if(!assigned.includes(o.name)){
-            assigned[idx]={name:o.name,type:o.type};
-            break;
-          }
-        }
-      });
-    });
-    // Assign motorcycles
-    let mAssigned = assignments[t]["Motorcycles"];
-    mAssigned.forEach((m,mi)=>{
-      for(let o of officers){
-        if(o.start && t<o.start) continue;
-        if(o.end && t>=o.end) continue;
-        if(!mAssigned.find(x=>x && x.name===o.name)){
-          mAssigned[mi]={name:o.name,type:o.type};
-          break;
-        }
-      }
-    });
-  });
-
-  renderGrid();
-  renderSummary();
-  renderOfficerRoster();
-}
-
-// ------------------------
-// RENDER GRID
-// ------------------------
-function renderGrid(){
-  const grid=document.getElementById("grid");
-  grid.innerHTML="";
-  let operation=document.getElementById("operation").value;
-  let shift=document.getElementById("shift").value;
-  let zones = zonesConfig[operation];
-  let timeslots = Object.keys(assignments);
-
-  // Header
-  let header = document.createElement("tr");
-  header.appendChild(document.createElement("th"));
-  header.appendChild(document.createElement("th"));
-  timeslots.forEach(t=>{
-    let th=document.createElement("th");
-    th.textContent=t;
-    header.appendChild(th);
-  });
-  grid.appendChild(header);
-
-  // Zones + counters
-  zones.forEach((z,zi)=>{
-    for(let c=0;c<z.counters;c++){
-      let tr=document.createElement("tr");
-      let thC=document.createElement("th");
-      thC.textContent=(operation==="arrival"?"AC":"DC")+(Object.values(zones).slice(0,zi).reduce((s,z2)=>s+z2.counters,0)+c+1);
-      tr.appendChild(thC);
-
-      let thZ=document.createElement("th");
-      thZ.textContent=z.name;
-      tr.appendChild(thZ);
-
-      timeslots.forEach(t=>{
-        let td=document.createElement("td");
-        td.className="counterCell closed";
-        let assign = assignments[t][z.name][c];
-        if(assign){
-          td.textContent=assign.name;
-          td.className=assign.type==="base"?"counterCell highlight1":
-                       assign.type==="ot"?"counterCell highlight3":
-                       assign.type==="sos"?"counterCell highlight2":"counterCell closed";
-        }
-        tr.appendChild(td);
-      });
-      grid.appendChild(tr);
+class RosterManager {
+    constructor() {
+        this.currentShift = 'morning';
+        this.officers = {
+            main: [],
+            sos: [],
+            ot: [],
+            ra_ro: []
+        };
+        this.counters = this.initializeCounters();
+        this.shiftSchedules = this.initializeSchedules();
+        this.init();
     }
-  });
 
-  // Motorcycles
-  manualMotor[operation].forEach((m,mi)=>{
-    let tr=document.createElement("tr");
-    let thC=document.createElement("th");
-    thC.textContent=m;
-    tr.appendChild(thC);
+    init() {
+        this.setupEventListeners();
+        this.initializeCounterGrid();
+        this.updateDisplay();
+    }
 
-    let thZ=document.createElement("th");
-    thZ.textContent="Motorcycles";
-    tr.appendChild(thZ);
+    initializeCounters() {
+        return {
+            arrival: {
+                zone1: { car: 10, mc: 2, active: [] },
+                zone2: { car: 10, mc: 0, active: [] },
+                zone3: { car: 10, mc: 0, active: [] },
+                zone4: { car: 10, mc: 0, active: [] }
+            },
+            departure: {
+                zone1: { car: 10, mc: 2, active: [] },
+                zone2: { car: 8, mc: 0, active: [] },
+                zone3: { car: 8, mc: 0, active: [] },
+                zone4: { car: 10, mc: 0, active: [] }
+            }
+        };
+    }
 
-    timeslots.forEach(t=>{
-      let td=document.createElement("td");
-      let assign = assignments[t]["Motorcycles"][mi];
-      if(assign){
-        td.textContent=assign.name;
-        td.className=assign.type==="base"?"counterCell highlight1":
-                     assign.type==="ot"?"counterCell highlight3":
-                     assign.type==="sos"?"counterCell highlight2":"counterCell closed";
-      }
-      tr.appendChild(td);
-    });
-    grid.appendChild(tr);
-  });
+    initializeSchedules() {
+        return {
+            morning: {
+                start: '10:00',
+                end: '22:00',
+                summary_start: '10:00',
+                summary_end: '21:45'
+            },
+            night: {
+                start: '22:00',
+                end: '10:00',
+                summary_start: '22:00',
+                summary_end: '09:45'
+            },
+            breaks: {
+                main_morning: [
+                    { duration: 45, type: 'break' },
+                    { duration: 45, type: 'break' },
+                    { duration: 30, type: 'break' }
+                ],
+                main_night: [
+                    { duration: 30, type: 'break' },
+                    { duration: 30, type: 'break' },
+                    { duration: 150, type: 'long_break' }
+                ],
+                ot1: [{ start: '12:30', end: '14:45', slots: 3 }],
+                ot2: [{ start: '17:30', end: '19:45', slots: 3 }],
+                ot3: [{ start: '07:30', end: '09:45', slots: 3 }]
+            },
+            ot_schedules: {
+                ot1: { start: '11:00', end: '15:30', shift: 'morning' },
+                ot2: { start: '16:00', end: '20:30', shift: 'morning' },
+                ot3: { start: '06:00', end: '10:30', shift: 'night' }
+            }
+        };
+    }
+
+    setupEventListeners() {
+        document.getElementById('morning-shift').addEventListener('click', () => {
+            this.switchShift('morning');
+        });
+
+        document.getElementById('night-shift').addEventListener('click', () => {
+            this.switchShift('night');
+        });
+    }
+
+    switchShift(shift) {
+        this.currentShift = shift;
+        document.querySelectorAll('.shift-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`${shift}-shift`).classList.add('active');
+        this.updateDisplay();
+    }
+
+    initializeCounterGrid() {
+        const zones = ['arrival', 'departure'];
+        zones.forEach(area => {
+            for (let i = 1; i <= 4; i++) {
+                const zoneData = this.counters[area][`zone${i}`];
+                const container = document.getElementById(`${area}-zone-${i}`);
+                container.innerHTML = '';
+
+                // Add car counters
+                for (let j = 1; j <= zoneData.car; j++) {
+                    const counter = this.createCounterElement(`${area}-zone${i}-car${j}`, 'car');
+                    container.appendChild(counter);
+                }
+
+                // Add motorcycle counters
+                for (let j = 1; j <= zoneData.mc; j++) {
+                    const counter = this.createCounterElement(`${area}-zone${i}-mc${j}`, 'mc');
+                    container.appendChild(counter);
+                }
+            }
+        });
+    }
+
+    createCounterElement(id, type) {
+        const counter = document.createElement('div');
+        counter.className = 'counter available';
+        counter.id = id;
+        counter.textContent = type === 'car' ? 'C' : 'MC';
+        counter.title = `${type.toUpperCase()} Counter - Available`;
+        
+        counter.addEventListener('click', () => {
+            this.toggleCounter(id);
+        });
+
+        return counter;
+    }
+
+    toggleCounter(counterId) {
+        const counter = document.getElementById(counterId);
+        const currentState = counter.classList.contains('occupied') ? 'occupied' : 'available';
+        
+        if (currentState === 'available') {
+            counter.classList.remove('available');
+            counter.classList.add('occupied');
+            counter.title = counter.title.replace('Available', 'Occupied');
+        } else {
+            counter.classList.remove('occupied');
+            counter.classList.add('available');
+            counter.title = counter.title.replace('Occupied', 'Available');
+        }
+        
+        this.updateStatus();
+    }
+
+    generateOfficerId() {
+        return Math.random().toString(36).substr(2, 9);
+    }
+
+    addOfficer(type) {
+        let officer = {
+            id: this.generateOfficerId(),
+            type: type,
+            shift: this.currentShift,
+            addedAt: new Date().toISOString()
+        };
+
+        switch(type) {
+            case 'main-roster':
+                officer.breaks = this.shiftSchedules.breaks[`main_${this.currentShift}`];
+                this.officers.main.push(officer);
+                break;
+            case 'sos':
+                this.officers.sos.push(officer);
+                break;
+            case 'ot':
+                const otType = document.getElementById('ot-type').value;
+                officer.otType = otType;
+                officer.schedule = this.shiftSchedules.ot_schedules[otType];
+                officer.breaks = this.shiftSchedules.breaks[otType];
+                this.officers.ot.push(officer);
+                break;
+            case 'ra-ro':
+                const time = document.getElementById('ra-ro-time').value;
+                const raRoType = document.getElementById('ra-ro-type').value;
+                if (!time) {
+                    alert('Please specify time for RA/RO');
+                    return;
+                }
+                officer.time = time;
+                officer.raRoType = raRoType;
+                if (raRoType === 'ro') {
+                    // Calculate release time (30 minutes before)
+                    officer.releaseTime = this.subtractMinutes(time, 30);
+                }
+                this.officers.ra_ro.push(officer);
+                break;
+        }
+
+        this.updateDisplay();
+        this.showNotification(`${type.toUpperCase()} officer added successfully`);
+    }
+
+    removeOfficer(type) {
+        let removed = false;
+        
+        switch(type) {
+            case 'main-roster':
+                if (this.officers.main.length > 0) {
+                    this.officers.main.pop();
+                    removed = true;
+                }
+                break;
+            case 'sos':
+                if (this.officers.sos.length > 0) {
+                    this.officers.sos.pop();
+                    removed = true;
+                }
+                break;
+            case 'ot':
+                if (this.officers.ot.length > 0) {
+                    this.officers.ot.pop();
+                    removed = true;
+                }
+                break;
+            case 'ra-ro':
+                if (this.officers.ra_ro.length > 0) {
+                    this.officers.ra_ro.pop();
+                    removed = true;
+                }
+                break;
+        }
+
+        if (removed) {
+            this.updateDisplay();
+            this.showNotification(`${type.toUpperCase()} officer removed successfully`);
+        } else {
+            this.showNotification(`No ${type.toUpperCase()} officers to remove`);
+        }
+    }
+
+    subtractMinutes(timeStr, minutes) {
+        const [hours, mins] = timeStr.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, mins, 0, 0);
+        date.setMinutes(date.getMinutes() - minutes);
+        return date.toTimeString().substr(0, 5);
+    }
+
+    updateDisplay() {
+        this.updateStatus();
+        this.updateManningSummary();
+    }
+
+    updateStatus() {
+        const totalOfficers = this.getTotalOfficers();
+        const activeCounters = this.getActiveCounters();
+        const totalCounters = this.getTotalCounters();
+        const manningLevel = Math.round((activeCounters.total / totalCounters.total) * 100);
+
+        document.getElementById('total-officers').textContent = totalOfficers;
+        document.getElementById('manning-level').textContent = `${manningLevel}%`;
+        document.getElementById('car-counters').textContent = activeCounters.car;
+        document.getElementById('mc-counters').textContent = activeCounters.mc;
+
+        // Update manning level color based on minimum requirement
+        const manningElement = document.getElementById('manning-level');
+        if (manningLevel < 50) {
+            manningElement.style.color = '#dc3545'; // Red for below minimum
+        } else {
+            manningElement.style.color = '#28a745'; // Green for adequate
+        }
+    }
+
+    getTotalOfficers() {
+        return this.officers.main.length + 
+               this.officers.sos.length + 
+               this.officers.ot.length + 
+               this.officers.ra_ro.length;
+    }
+
+    getActiveCounters() {
+        let carCount = 0;
+        let mcCount = 0;
+        
+        document.querySelectorAll('.counter.occupied').forEach(counter => {
+            if (counter.textContent === 'C') carCount++;
+            if (counter.textContent === 'MC') mcCount++;
+        });
+
+        return { car: carCount, mc: mcCount, total: carCount + mcCount };
+    }
+
+    getTotalCounters() {
+        // Arrival: 40 car + 2 MC = 42
+        // Departure: 36 car + 2 MC = 38
+        return { car: 76, mc: 4, total: 80 };
+    }
+
+    generateManningSummary() {
+        const schedule = this.shiftSchedules[this.currentShift];
+        const startTime = this.parseTime(schedule.summary_start);
+        const endTime = this.parseTime(schedule.summary_end);
+        
+        let summary = `Manning Summary - ${this.currentShift.toUpperCase()} SHIFT\n`;
+        summary += `Period: ${schedule.summary_start} - ${schedule.summary_end}\n\n`;
+
+        const currentTime = new Date(startTime);
+        const end = new Date(endTime);
+
+        // Handle overnight shift
+        if (this.currentShift === 'night' && end < currentTime) {
+            end.setDate(end.getDate() + 1);
+        }
+
+        while (currentTime <= end) {
+            const timeStr = this.formatTime(currentTime);
+            const counters = this.getCountersAtTime(timeStr);
+            
+            summary += `${timeStr}: ${counters.car}/${String(counters.mc).padStart(2, '0')}\n`;
+            summary += `${counters.zone1}/${counters.zone2}/${counters.zone3}/${counters.zone4}\n\n`;
+
+            currentTime.setMinutes(currentTime.getMinutes() + 15);
+        }
+
+        document.getElementById('manning-display').textContent = summary;
+    }
+
+    getCountersAtTime(timeStr) {
+        // This would calculate actual manning based on officer schedules and breaks
+        // For now, returning current active counters
+        const active = this.getActiveCounters();
+        return {
+            car: active.car,
+            mc: active.mc,
+            zone1: Math.floor(active.total / 4),
+            zone2: Math.floor(active.total / 4),
+            zone3: Math.floor(active.total / 4),
+            zone4: Math.floor(active.total / 4)
+        };
+    }
+
+    parseTime(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return date;
+    }
+
+    formatTime(date) {
+        return date.toTimeString().substr(0, 5);
+    }
+
+    exportSummary() {
+        const summary = document.getElementById('manning-display').textContent;
+        if (!summary) {
+            this.showNotification('Please generate summary first');
+            return;
+        }
+
+        const blob = new Blob([summary], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `manning-summary-${this.currentShift}-${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    showNotification(message) {
+        // Create a simple notification system
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        `;
+
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 3000);
+    }
 }
 
-// ------------------------
-// SUMMARY
-// ------------------------
-function renderSummary(){
-  let summary="";
-  let operation=document.getElementById("operation").value;
-  let zones = zonesConfig[operation];
-  let timeslots = Object.keys(assignments);
-  timeslots.forEach(t=>{
-    let total=0;
-    let breakdown=[];
-    zones.forEach(z=>{
-      let count = assignments[t][z.name].filter(x=>x!=null).length;
-      total+=count;
-      breakdown.push(count);
-    });
-    summary+=t+": "+total+"/"+manualMotor[operation].length+"\n";
-    summary+=breakdown.join("/")+"\n\n";
-  });
-  document.getElementById("summary").textContent=summary;
+// Global functions for button handlers
+let rosterManager;
+
+function addOfficer(type) {
+    rosterManager.addOfficer(type);
 }
 
-// ------------------------
-// OFFICER ROSTER
-// ------------------------
-function renderOfficerRoster(){
-  let text="";
-  officers.forEach(o=>{
-    text+=o.name+" ("+o.type+")";
-    if(o.start) text+=" RA:"+o.start;
-    if(o.end) text+=" RO:"+o.end;
-    text+="\n";
-  });
-  document.getElementById("officerRoster").textContent=text;
+function removeOfficer(type) {
+    rosterManager.removeOfficer(type);
 }
 
-// ------------------------
-// SEARCH OFFICER
-// ------------------------
-function searchOfficer(){
-  let val=document.getElementById("searchBox").value.toLowerCase();
-  let roster=document.getElementById("officerRoster");
-  let lines=roster.textContent.split("\n");
-  roster.textContent = lines.filter(l=>l.toLowerCase().includes(val)).join("\n");
-}
-
+function generateM*
