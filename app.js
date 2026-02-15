@@ -73,19 +73,29 @@ class RosterManager {
     }
 
     setupEventListeners() {
-        document.getElementById('morning-shift').addEventListener('click', () => {
-            this.switchShift('morning');
-        });
+        const morningBtn = document.getElementById('morning-shift');
+        const nightBtn = document.getElementById('night-shift');
+        
+        if (morningBtn) {
+            morningBtn.addEventListener('click', () => {
+                this.switchShift('morning');
+            });
+        }
 
-        document.getElementById('night-shift').addEventListener('click', () => {
-            this.switchShift('night');
-        });
+        if (nightBtn) {
+            nightBtn.addEventListener('click', () => {
+                this.switchShift('night');
+            });
+        }
     }
 
     switchShift(shift) {
         this.currentShift = shift;
         document.querySelectorAll('.shift-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(`${shift}-shift`).classList.add('active');
+        const activeBtn = document.getElementById(`${shift}-shift`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
         this.updateDisplay();
     }
 
@@ -95,18 +105,20 @@ class RosterManager {
             for (let i = 1; i <= 4; i++) {
                 const zoneData = this.counters[area][`zone${i}`];
                 const container = document.getElementById(`${area}-zone-${i}`);
-                container.innerHTML = '';
+                if (container) {
+                    container.innerHTML = '';
 
-                // Add car counters
-                for (let j = 1; j <= zoneData.car; j++) {
-                    const counter = this.createCounterElement(`${area}-zone${i}-car${j}`, 'car');
-                    container.appendChild(counter);
-                }
+                    // Add car counters
+                    for (let j = 1; j <= zoneData.car; j++) {
+                        const counter = this.createCounterElement(`${area}-zone${i}-car${j}`, 'car');
+                        container.appendChild(counter);
+                    }
 
-                // Add motorcycle counters
-                for (let j = 1; j <= zoneData.mc; j++) {
-                    const counter = this.createCounterElement(`${area}-zone${i}-mc${j}`, 'mc');
-                    container.appendChild(counter);
+                    // Add motorcycle counters
+                    for (let j = 1; j <= zoneData.mc; j++) {
+                        const counter = this.createCounterElement(`${area}-zone${i}-mc${j}`, 'mc');
+                        container.appendChild(counter);
+                    }
                 }
             }
         });
@@ -128,16 +140,18 @@ class RosterManager {
 
     toggleCounter(counterId) {
         const counter = document.getElementById(counterId);
-        const currentState = counter.classList.contains('occupied') ? 'occupied' : 'available';
+        if (!counter) return;
+
+        const isOccupied = counter.classList.contains('occupied');
         
-        if (currentState === 'available') {
-            counter.classList.remove('available');
-            counter.classList.add('occupied');
-            counter.title = counter.title.replace('Available', 'Occupied');
-        } else {
+        if (isOccupied) {
             counter.classList.remove('occupied');
             counter.classList.add('available');
             counter.title = counter.title.replace('Occupied', 'Available');
+        } else {
+            counter.classList.remove('available');
+            counter.classList.add('occupied');
+            counter.title = counter.title.replace('Available', 'Occupied');
         }
         
         this.updateStatus();
@@ -164,23 +178,25 @@ class RosterManager {
                 this.officers.sos.push(officer);
                 break;
             case 'ot':
-                const otType = document.getElementById('ot-type').value;
+                const otType = document.getElementById('ot-type')?.value || 'ot1';
                 officer.otType = otType;
                 officer.schedule = this.shiftSchedules.ot_schedules[otType];
                 officer.breaks = this.shiftSchedules.breaks[otType];
                 this.officers.ot.push(officer);
                 break;
             case 'ra-ro':
-                const time = document.getElementById('ra-ro-time').value;
-                const raRoType = document.getElementById('ra-ro-type').value;
+                const timeInput = document.getElementById('ra-ro-time');
+                const typeInput = document.getElementById('ra-ro-type');
+                const time = timeInput?.value;
+                const raRoType = typeInput?.value || 'ra';
+                
                 if (!time) {
-                    alert('Please specify time for RA/RO');
+                    this.showNotification('Please specify time for RA/RO', 'error');
                     return;
                 }
                 officer.time = time;
                 officer.raRoType = raRoType;
                 if (raRoType === 'ro') {
-                    // Calculate release time (30 minutes before)
                     officer.releaseTime = this.subtractMinutes(time, 30);
                 }
                 this.officers.ra_ro.push(officer);
@@ -188,7 +204,7 @@ class RosterManager {
         }
 
         this.updateDisplay();
-        this.showNotification(`${type.toUpperCase()} officer added successfully`);
+        this.showNotification(`${type.replace('-', ' ').toUpperCase()} officer added successfully`);
     }
 
     removeOfficer(type) {
@@ -223,9 +239,9 @@ class RosterManager {
 
         if (removed) {
             this.updateDisplay();
-            this.showNotification(`${type.toUpperCase()} officer removed successfully`);
+            this.showNotification(`${type.replace('-', ' ').toUpperCase()} officer removed successfully`);
         } else {
-            this.showNotification(`No ${type.toUpperCase()} officers to remove`);
+            this.showNotification(`No ${type.replace('-', ' ').toUpperCase()} officers to remove`, 'error');
         }
     }
 
@@ -239,27 +255,30 @@ class RosterManager {
 
     updateDisplay() {
         this.updateStatus();
-        this.updateManningSummary();
     }
 
     updateStatus() {
         const totalOfficers = this.getTotalOfficers();
         const activeCounters = this.getActiveCounters();
         const totalCounters = this.getTotalCounters();
-        const manningLevel = Math.round((activeCounters.total / totalCounters.total) * 100);
+        const manningLevel = totalCounters.total > 0 ? Math.round((activeCounters.total / totalCounters.total) * 100) : 0;
 
-        document.getElementById('total-officers').textContent = totalOfficers;
-        document.getElementById('manning-level').textContent = `${manningLevel}%`;
-        document.getElementById('car-counters').textContent = activeCounters.car;
-        document.getElementById('mc-counters').textContent = activeCounters.mc;
+        const totalOfficersEl = document.getElementById('total-officers');
+        const manningLevelEl = document.getElementById('manning-level');
+        const carCountersEl = document.getElementById('car-counters');
+        const mcCountersEl = document.getElementById('mc-counters');
 
-        // Update manning level color based on minimum requirement
-        const manningElement = document.getElementById('manning-level');
-        if (manningLevel < 50) {
-            manningElement.style.color = '#dc3545'; // Red for below minimum
-        } else {
-            manningElement.style.color = '#28a745'; // Green for adequate
+        if (totalOfficersEl) totalOfficersEl.textContent = totalOfficers;
+        if (manningLevelEl) {
+            manningLevelEl.textContent = `${manningLevel}%`;
+            if (manningLevel < 50) {
+                manningLevelEl.style.color = '#dc3545';
+            } else {
+                manningLevelEl.style.color = '#28a745';
+            }
         }
+        if (carCountersEl) carCountersEl.textContent = activeCounters.car;
+        if (mcCountersEl) mcCountersEl.textContent = activeCounters.mc;
     }
 
     getTotalOfficers() {
@@ -282,8 +301,6 @@ class RosterManager {
     }
 
     getTotalCounters() {
-        // Arrival: 40 car + 2 MC = 42
-        // Departure: 36 car + 2 MC = 38
         return { car: 76, mc: 4, total: 80 };
     }
 
@@ -298,7 +315,6 @@ class RosterManager {
         const currentTime = new Date(startTime);
         const end = new Date(endTime);
 
-        // Handle overnight shift
         if (this.currentShift === 'night' && end < currentTime) {
             end.setDate(end.getDate() + 1);
         }
@@ -313,20 +329,22 @@ class RosterManager {
             currentTime.setMinutes(currentTime.getMinutes() + 15);
         }
 
-        document.getElementById('manning-display').textContent = summary;
+        const displayEl = document.getElementById('manning-display');
+        if (displayEl) {
+            displayEl.textContent = summary;
+        }
     }
 
     getCountersAtTime(timeStr) {
-        // This would calculate actual manning based on officer schedules and breaks
-        // For now, returning current active counters
         const active = this.getActiveCounters();
+        const perZone = Math.floor(active.total / 4);
         return {
             car: active.car,
             mc: active.mc,
-            zone1: Math.floor(active.total / 4),
-            zone2: Math.floor(active.total / 4),
-            zone3: Math.floor(active.total / 4),
-            zone4: Math.floor(active.total / 4)
+            zone1: perZone,
+            zone2: perZone,
+            zone3: perZone,
+            zone4: active.total - (perZone * 3)
         };
     }
 
@@ -342,9 +360,11 @@ class RosterManager {
     }
 
     exportSummary() {
-        const summary = document.getElementById('manning-display').textContent;
-        if (!summary) {
-            this.showNotification('Please generate summary first');
+        const summaryEl = document.getElementById('manning-display');
+        const summary = summaryEl?.textContent;
+        
+        if (!summary || summary.trim() === '') {
+            this.showNotification('Please generate summary first', 'error');
             return;
         }
 
@@ -357,17 +377,18 @@ class RosterManager {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        
+        this.showNotification('Summary exported successfully');
     }
 
-    showNotification(message) {
-        // Create a simple notification system
+    showNotification(message, type = 'success') {
         const notification = document.createElement('div');
         notification.textContent = message;
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #28a745;
+            background: ${type === 'error' ? '#dc3545' : '#28a745'};
             color: white;
             padding: 15px 20px;
             border-radius: 5px;
@@ -376,32 +397,60 @@ class RosterManager {
             animation: slideIn 0.3s ease;
         `;
 
-        // Add CSS animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(style);
+        if (!document.getElementById('notification-style')) {
+            const style = document.createElement('style');
+            style.id = 'notification-style';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         document.body.appendChild(notification);
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (notification.parentNode) {
+                document.body.removeChild(notification);
+            }
         }, 3000);
     }
 }
 
-// Global functions for button handlers
+// Global variables and functions
 let rosterManager;
 
 function addOfficer(type) {
-    rosterManager.addOfficer(type);
+    if (rosterManager) {
+        rosterManager.addOfficer(type);
+    }
 }
 
 function removeOfficer(type) {
-    rosterManager.removeOfficer(type);
+    if (rosterManager) {
+        rosterManager.removeOfficer(type);
+    }
 }
 
-function generateM*
+function generateManningSummary() {
+    if (rosterManager) {
+        rosterManager.generateManningSummary();
+    }
+}
+
+function exportSummary() {
+    if (rosterManager) {
+        rosterManager.exportSummary();
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        rosterManager = new RosterManager();
+        console.log('Roster Manager initialized successfully');
+    } catch (error) {
+        console.error('Error initializing Roster Manager:', error);
+    }
+});
