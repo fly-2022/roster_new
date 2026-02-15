@@ -1,0 +1,126 @@
+/* Example - use your full style from the code you sent */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    overflow-x: hidden;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ccc;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    border-radius: 5px 5px 0 0;
+}
+
+.tab.active {
+    background-color: white;
+    border-bottom: 2px solid white;
+    font-weight: bold;
+}
+
+/* Controls */
+.controls-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.shift-selector label {
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.shift-selector select {
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.clear-button {
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.clear-button:hover {
+    background-color: #c82333;
+}
+
+/* Table styles */
+#table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+th,
+td {
+    min-width: 30px;
+    height: 25px;
+    text-align: center;
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background-color: #ddd;
+    z-index: 3;
+}
+
+tr th:first-child {
+    position: sticky;
+    left: 0;
+    background-color: #ccc;
+    z-index: 4;
+    font-size: 11px;
+}
+
+.motor-row {
+    background-color: #ccffcc;
+    font-weight: bold;
+}
+
+/* Summary */
+#summary-container {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#summary-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background-color: #f6f8fa;
+    border-bottom: 1px solid #d0d7de;
+}
+
+#summary-text {
+    white-space: pre;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    margin: 0;
+}
