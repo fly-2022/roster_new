@@ -1,109 +1,219 @@
 const cols = 24;
 let mode = "arrival";
 let shift = "morning";
-const zoneSizes = { arrival: [10,10,10,10], departure: [8,10,10,8] };
+
+const zoneSizes = {
+  arrival: [10,10,10,10],
+  departure: [10,8,8,10]
+};
+
 const dataStore = { arrival: null, departure: null };
-let officersList = [];
+const officerList = { arrival: [], departure: [] }; // Store added officers
+
 const container = document.getElementById("table-container");
 const summaryText = document.getElementById("summary-text");
 const clearButton = document.getElementById("clear-button");
-let dragging=false,startRow=null,startCol=null,dragDirection=null,paintedCells=new Set();
 
-// --- Initialize Data ---
-function initializeData(modeName){
-  const zones=zoneSizes[modeName]; const rows=zones.reduce((sum,s)=>sum+s,0);
-  const df=Array.from({length:rows+1},()=>Array(cols).fill(0)); return df;
+// Time headers
+function generateColHeaders() {
+  const headers = [];
+  const startHour = shift === "morning" ? 10 : 22;
+  let hour = startHour, minute = 0;
+  for (let i=0;i<cols;i++){
+    headers.push(`${hour.toString().padStart(2,"0")}${minute.toString().padStart(2,"0")}`);
+    minute+=30;
+    if (minute>=60){ minute=0; hour++; if(hour>=24) hour=0; }
+  }
+  return headers;
 }
-function getCurrentData(){if(!dataStore[mode])dataStore[mode]=initializeData(mode); return dataStore[mode];}
 
-// --- Officer Management ---
-function addOfficer(off){ officersList.push(off); updateRoster(); saveToLocalStorage(); }
-function removeOfficer(name){ officersList=officersList.filter(o=>o.name!==name); updateRoster(); saveToLocalStorage(); }
-document.getElementById("addOfficer").addEventListener("click",()=>{
-  addOfficer({
-    name:document.getElementById("officerName").value,
-    type:document.getElementById("officerType").value,
-    shift:document.getElementById("officerShift").value,
-    ra:document.getElementById("raTime").value,
-    ro:document.getElementById("roTime").value
-  });
-});
-document.getElementById("removeOfficer").addEventListener("click",()=>{
-  removeOfficer(document.getElementById("officerName").value);
-});
+let colHeaders = generateColHeaders();
 
-// --- Auto-fill counters ---
-function autoFillCounters(df){
-  const zones=zoneSizes[mode]; const rows=df.length-1; const motorRow=rows;
-  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)df[r][c]=0;
-  for(let c=0;c<cols;c++)df[motorRow][c]=0;
-
-  const active=officersList.filter(o=>o.shift===shift);
-  let counterMap=[]; let counterIndex=0;
-  for(let z=0;z<zones.length;z++){for(let r=0;r<zones[z];r++)counterMap.push(r+counterIndex); counterIndex+=zones[z];}
-  active.forEach(off=>{
-    for(let c=0;c<cols;c++){
-      const row=counterMap.find(r=>df[r][c]===0);
-      if(row!==undefined)df[row][c]=1;
-    }
-  });
+// Initialize data
+function initializeData(modeName){
+  const zones = zoneSizes[modeName];
+  const rows = zones.reduce((a,b)=>a+b,0);
+  const df = Array.from({length: rows+1},()=>Array(cols).fill(0)); // last row = motor
   return df;
 }
 
-// --- Render Table ---
-let colHeaders=generateColHeaders();
-function renderTable(){
-  const df=getCurrentData(); autoFillCounters(df);
-  const zones=zoneSizes[mode]; const rows=df.length-1; const motorRowIndex=rows;
-  let html="<table><tr><th></th>";
-  colHeaders.forEach((h,i)=>{let style=(i+1)%2===0?"border-right:5px solid;":"border-right:1px solid;"; html+=`<th style="${style}">${h}</th>`;});
-  html+="</tr>";
-  let currentRow=0,zoneIndex=0;
-  for(let zSize of zones){
-    const zoneStart=currentRow,zoneEnd=currentRow+zSize-1;
-    for(let i=0;i<zSize;i++){
-      const rowIndex=currentRow,isLast=i===zSize-1,rowStyle=isLast?"border-bottom:5px solid;":"";
-      html+=`<tr style="${rowStyle}"><th style="${rowStyle}">${rowIndex+1}</th>`;
-      df[rowIndex].forEach((v,colIndex)=>{
-        let style=(colIndex+1)%2===0?"border-right:5px solid;":"border-right:1px dashed;";
-        if(isLast)style+="border-bottom:5px solid;";
-        if(v===1)style+="background-color:blue;"; else style+="background-color:transparent;";
-        html+=`<td data-row="${rowIndex}" data-col="${colIndex}" style="${style}">${v}</td>`;
-      });
-      html+="</tr>"; currentRow++;
-    }
-    html+=`<tr class="subtotal-row"><th style="border-top:5px solid; border-bottom:5px solid;">Zone ${zoneIndex+1}</th>`;
-    for(let col=0;col<cols;col++){ let style="border-top:5px solid; border-bottom:5px solid;"; style+=(col+1)%2===0?"border-right:5px solid;":"border-right:1px dashed;"; html+=`<td class="subtotal" data-sub-start="${zoneStart}" data-sub-end="${zoneEnd}" data-col="${col}" style="${style}">0</td>`;}
-    html+="</tr>"; zoneIndex++;
-  }
-  // Grand total
-  html+=`<tr class="grandtotal-row"><th style="border-top:5px solid; border-bottom:5px solid;">Total(Car)</th>`;
-  for(let col=0;col<cols;col++){ let style="border-top:5px solid; border-bottom:5px solid;"; style+=(col+1)%2===0?"border-right:5px solid;":"border-right:1px dashed;"; html+=`<td class="grandtotal" data-col="${col}" style="${style}">0</td>`;}
-  html+="</tr>";
-  // Motor row
-  html+=`<tr class="motor-row"><th style="border-top:5px solid; border-bottom:5px solid;">${motorRowIndex+1}</th>`;
-  for(let col=0;col<cols;col++){ let style="border-top:5px solid; border-bottom:5px solid;"; style+=(col+1)%2===0?"border-right:5px solid;":"border-right:1px dashed;"; style+=df[motorRowIndex][col]===1?"background-color:blue;":""; html+=`<td data-row="${motorRowIndex}" data-col="${col}" style="${style}">${df[motorRowIndex][col]}</td>`;}
-  html+="</tr></table>"; container.innerHTML=html;
-  attachCellEvents(); updateAllTotals();
+// Get current data
+function getCurrentData(){
+  if(!dataStore[mode]) dataStore[mode]=initializeData(mode);
+  return dataStore[mode];
 }
 
-// --- Column Headers ---
-function generateColHeaders(){ const start=shift==="morning"?10:22; let headers=[],h=start,m=0; for(let i=0;i<cols;i++){headers.push(`${String(h).padStart(2,"0")}${String(m).padStart(2,"0")}`); m+=30; if(m>=60){m=0;h++; if(h>=24)h=0;}} return headers;}
+// Render Table
+function renderTable(){
+  const df = getCurrentData();
+  const zones = zoneSizes[mode];
+  let html="<table>";
+  html+="<tr><th></th>";
+  colHeaders.forEach(h=>html+=`<th>${h}</th>`);
+  html+="</tr>";
 
-// --- Cell click/drag
-function attachCellEvents(){
-  const allCells = container.querySelectorAll("td[data-row]");
-  allCells.forEach(td=>{
-    td.addEventListener("mousedown",(e)=>{dragging=true;startRow=Number(td.dataset.row);startCol=Number(td.dataset.col);dragDirection=null;paintedCells.clear();toggleCell(td);});
-    td.addEventListener("mouseover",(e)=>{if(!dragging)return; handleDrag(Number(td.dataset.row),Number(td.dataset.col));});
-    td.addEventListener("mouseup",()=>{dragging=false;paintedCells.clear();});
+  let rowIndex=0;
+  zones.forEach((size, zIdx)=>{
+    for(let i=0;i<size;i++){
+      html+=`<tr><th>${rowIndex+1}</th>`;
+      for(let c=0;c<cols;c++){
+        html+=`<td data-row="${rowIndex}" data-col="${c}" style="background:${df[rowIndex][c]? 'blue':'transparent'}">${df[rowIndex][c]}</td>`;
+      }
+      html+="</tr>";
+      rowIndex++;
+    }
+  });
+
+  // Motor row
+  const motorRow = df.length-1;
+  html+=`<tr class="motor-row"><th>${motorRow+1}</th>`;
+  for(let c=0;c<cols;c++){
+    html+=`<td data-row="${motorRow}" data-col="${c}" style="background:${df[motorRow][c]? 'blue':'transparent'}">${df[motorRow][c]}</td>`;
+  }
+  html+="</tr>";
+
+  html+="</table>";
+  container.innerHTML=html;
+
+  addCellListeners();
+  assignOfficersToGrid();
+  renderSummary();
+}
+
+// Add officer click/drag listeners
+function addCellListeners(){
+  container.querySelectorAll("td[data-row]").forEach(td=>{
+    td.onclick=()=>toggleCell(td);
   });
 }
-function handleDrag(r,c){if(dragDirection===null){if(c===startCol&&r!==startRow)dragDirection='vertical'; else if(r===startRow&&c!==startCol)dragDirection='horizontal'; else return;}
-  let tr=r,tc=c;if(dragDirection==='vertical')tc=startCol; else tr=startRow; const key=`${tr}-${tc}`; if(!paintedCells.has(key)){paintedCells.add(key); toggleCell(container.querySelector(`td[data-row="${tr}"][data-col="${tc}"]`));}}
-function toggleCell(td){const df=getCurrentData(); const r=Number(td.dataset.row),c=Number(td.dataset.col); df[r][c]=df[r][c]===0?1:0; td.style.backgroundColor=df[r][c]===1?"blue":"transparent"; updateAllTotals(); saveToLocalStorage();}
 
-// --- Summary ---
-function updateAllTotals(){
-  const df=getCurrentData(); const rows=df.length; let subtotalValues=[];
-  document.querySelectorAll(".subtotal").forEach(cell=>{const start=Number(cell.dataset.subStart),end=Number(cell.dataset.subEnd),col=Number(cell.dataset.col); let sum=0; for(let
+// Toggle cell manually
+function toggleCell(td){
+  const df=getCurrentData();
+  const r=Number(td.dataset.row),c=Number(td.dataset.col);
+  df[r][c]=df[r][c]===0?1:0;
+  td.style.background=df[r][c]? 'blue':'transparent';
+  renderSummary();
+}
+
+// Officer assignment logic
+function assignOfficersToGrid(){
+  const df=getCurrentData();
+  const totalRows=df.length-1;
+  const motorRow=df.length-1;
+
+  // Reset table
+  for(let r=0;r<totalRows;r++){
+    for(let c=0;c<cols;c++) df[r][c]=0;
+  }
+
+  const zoneStartIndex = [0];
+  zoneSizes[mode].reduce((acc,val)=>{zoneStartIndex.push(acc+val); return acc+val;},0);
+
+  // Assign officers: Main -> OT -> SOS -> RA
+  officerList[mode].forEach(off=>{
+    let startIdx=0,endIdx=totalRows-1;
+    if(off.type.startsWith('ot')){
+      // fixed timing for OT
+      let startCol = colHeaders.indexOf(off.start.replace(':',''));
+      let endCol = colHeaders.indexOf(off.end.replace(':',''));
+      for(let r=0;r<totalRows;r++){
+        for(let c=startCol;c<=endCol;c++){
+          if(df[r][c]===0){ df[r][c]=1; break; }
+        }
+      }
+    }else if(off.type==='sos' || off.type==='ra'){
+      let startCol = colHeaders.indexOf(off.start.replace(':',''));
+      let endCol = colHeaders.indexOf(off.end.replace(':',''));
+      for(let r=totalRows-1;r>=0;r--){ // fill back first
+        for(let c=startCol;c<=endCol;c++){
+          if(df[r][c]===0){ df[r][c]=1; break; }
+        }
+      }
+    }else{
+      // main roster, assign all empty
+      for(let r=totalRows-1;r>=0;r--){
+        for(let c=0;c<cols;c++){
+          if(df[r][c]===0){ df[r][c]=1; break; }
+        }
+      }
+    }
+  });
+
+  renderTableColors();
+}
+
+// Update colors after assignment
+function renderTableColors(){
+  const df=getCurrentData();
+  container.querySelectorAll("td[data-row]").forEach(td=>{
+    const r=Number(td.dataset.row),c=Number(td.dataset.col);
+    td.style.background=df[r][c]? 'blue':'transparent';
+  });
+}
+
+// Render summary
+function renderSummary(){
+  const df=getCurrentData();
+  let motorRow=df.length-1;
+  let text="";
+  for(let c=0;c<cols;c++){
+    let total=0;
+    for(let r=0;r<motorRow;r++) total+=df[r][c];
+    let motor=df[motorRow][c];
+    text+=`${colHeaders[c]}: ${total.toString().padStart(2,'0')}/${motor.toString().padStart(2,'0')}\n`;
+  }
+  summaryText.textContent=text;
+}
+
+// Add Officer
+document.getElementById("add-officer").onclick=function(){
+  const type=document.getElementById("officer-type").value;
+  const name=document.getElementById("officer-name").value;
+  const start=document.getElementById("officer-start").value;
+  const end=document.getElementById("officer-end").value;
+  const ra=document.getElementById("officer-ra").value;
+  const ro=document.getElementById("officer-ro").value;
+
+  if(!name){ alert("Enter name"); return; }
+
+  let officer={name,type,start,end,ra,ro};
+
+  // Set OT fixed times if type is OT
+  if(type==='ot1'){ officer.start='11:00'; officer.end='16:00'; }
+  if(type==='ot2'){ officer.start='16:00'; officer.end='21:00'; }
+  if(type==='ot3'){ officer.start='06:00'; officer.end='11:00'; }
+
+  officerList[mode].push(officer);
+  assignOfficersToGrid();
+  renderSummary();
+}
+
+// Shift select
+document.getElementById("shift-select").onchange=function(e){
+  shift=e.target.value;
+  colHeaders=generateColHeaders();
+  renderTable();
+}
+
+// Tab switching
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    mode=tab.dataset.mode;
+    renderTable();
+  }
+});
+
+// Clear button
+clearButton.onclick=()=>{
+  if(confirm("Clear all data for "+mode+"?")){
+    dataStore[mode]=initializeData(mode);
+    officerList[mode]=[];
+    renderTable();
+  }
+}
+
+// Initial render
+renderTable();
